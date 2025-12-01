@@ -18,108 +18,127 @@ public class GameService {
     private final Player computer;
     private final Scanner scanner;
     private final Random random;
+    private final DatabaseService databaseService;
 
-    public GameService(final Board board, final Player human, final Player computer, final Scanner scanner) {
+    public GameService(final Board board, final Player human, final Player computer,
+                       final Scanner scanner, final DatabaseService databaseService) {
         this.board = board;
         this.human = human;
         this.computer = computer;
         this.scanner = scanner;
+        this.databaseService = databaseService;
         this.random = new Random();
     }
 
+    public GameService(final Board board, final Player human, final Player computer, final Scanner scanner) {
+        this(board, human, computer, scanner, null);
+    }
+
     public void startGame() {
-        Player current = human;
+        Player currentPlayer = human;
         boolean gameOver = false;
 
         while (!gameOver) {
             board.printBoard();
 
-            if (current.equals(human)) {
+            if (currentPlayer.equals(human)) {
                 humanMove();
             } else {
                 computerMove();
             }
 
-            if (checkWin(current.getSymbol())) {
+            final boolean hasWon = checkWin(currentPlayer.getSymbol());
+            if (hasWon) {
                 board.printBoard();
                 if (LOGGER.isLoggable(Level.INFO)) {
-                    LOGGER.info(current.getName() + " won!");
+                    LOGGER.log(Level.INFO, "{0} won!", currentPlayer.getName());
+                }
+                if (databaseService != null) {
+                    databaseService.addWin(currentPlayer.getName());
                 }
                 gameOver = true;
             } else {
-                current = current.equals(human) ? computer : human;
+                currentPlayer = currentPlayer.equals(human) ? computer : human;
             }
         }
     }
 
     public void humanMove() {
-        boolean valid = false;
-        while (!valid) {
-            LOGGER.info("Your move: (ex. b3): ");
+        boolean validMove = false;
+        while (!validMove) {
+            if (LOGGER.isLoggable(Level.INFO)) {
+                LOGGER.log(Level.INFO, "Your move (e.g., b3): ");
+            }
             final String input = scanner.nextLine().trim();
             if (input.length() < 2) {
                 continue;
             }
-            final int col = input.charAt(0) - 'a';
-            int row;
+
+            final int column = input.charAt(0) - 'a';
+            final int row;
             try {
                 row = Integer.parseInt(input.substring(1)) - 1;
             } catch (NumberFormatException exception) {
+                if (LOGGER.isLoggable(Level.WARNING)) {
+                    LOGGER.log(Level.WARNING, "Invalid input, please enter a valid number.");
+                }
                 continue;
             }
-            final boolean insideBoard = row >= 0 && row < board.getRowCount()
-                    && col >= 0 && col < board.getColCount();
-            if (insideBoard && board.isCellEmpty(row, col)) {
-                board.placeMove(row, col, human.getSymbol());
-                valid = true;
+
+            if (row >= 0 && row < board.getRowCount()
+                    && column >= 0 && column < board.getColCount()
+                    && board.isCellEmpty(row, column)) {
+                board.placeMove(row, column, human.getSymbol());
+                validMove = true;
             } else {
-                LOGGER.warning("Invalid move!");
+                if (LOGGER.isLoggable(Level.WARNING)) {
+                    LOGGER.log(Level.WARNING, "Invalid move! Cell is occupied or out of bounds.");
+                }
             }
         }
     }
 
     public void computerMove() {
-        LOGGER.info("AIs turn...");
-        int row;
-        int col;
+        if (LOGGER.isLoggable(Level.INFO)) {
+            LOGGER.log(Level.INFO, "AI's turn...");
+        }
+        int rowIndex;
+        int columnIndex;
+
         do {
-            row = random.nextInt(board.getRowCount());
-            col = random.nextInt(board.getColCount());
-        } while (!board.isCellEmpty(row, col));
-        board.placeMove(row, col, computer.getSymbol());
+            rowIndex = random.nextInt(board.getRowCount());
+            columnIndex = random.nextInt(board.getColCount());
+        } while (!board.isCellEmpty(rowIndex, columnIndex));
+
+        board.placeMove(rowIndex, columnIndex, computer.getSymbol());
     }
 
     public boolean checkWin(final char symbol) {
-        boolean result = false;
-        for (int row = 0; row < board.getRowCount(); row++) {
-            for (int col = 0; col < board.getColCount(); col++) {
-                if (board.getCell(row, col) == symbol) {
-                    if (checkDirection(row, col, 1, 0, symbol)
-                            || checkDirection(row, col, 0, 1, symbol)
-                            || checkDirection(row, col, 1, 1, symbol)
-                            || checkDirection(row, col, 1, -1, symbol)) {
-                        result = true;
-                        break;
-                    }
+        boolean winFound = false;
+        for (int rowIndex = 0; rowIndex < board.getRowCount(); rowIndex++) {
+            for (int columnIndex = 0; columnIndex < board.getColCount(); columnIndex++) {
+                if (board.getCell(rowIndex, columnIndex) == symbol
+                        && (checkDirection(rowIndex, columnIndex, 1, 0, symbol)
+                            || checkDirection(rowIndex, columnIndex, 0, 1, symbol)
+                            || checkDirection(rowIndex, columnIndex, 1, 1, symbol)
+                            || checkDirection(rowIndex, columnIndex, 1, -1, symbol))) {
+                    winFound = true;
                 }
             }
-            if (result) {
-                break;
-            }
         }
-        return result;
+        return winFound;
     }
 
-    private boolean checkDirection(final int startRow, final int startCol,
-                                   final int deltaRow, final int deltaCol,
+    private boolean checkDirection(final int startRow, final int startColumn,
+                                   final int deltaRow, final int deltaColumn,
                                    final char symbol) {
         int count = 0;
         for (int i = 0; i < WIN_LENGTH; i++) {
             final int row = startRow + deltaRow * i;
-            final int col = startCol + deltaCol * i;
+            final int column = startColumn + deltaColumn * i;
             if (row >= 0 && row < board.getRowCount()
-                    && col >= 0 && col < board.getColCount()
-                    && board.getCell(row, col) == symbol) {
+                    && column >= 0 && column < board.getColCount()
+                    && board.getCell(row, column) == symbol) {
                 count++;
             } else {
                 break;

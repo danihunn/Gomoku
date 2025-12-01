@@ -24,10 +24,14 @@ public class Board {
         this.rowCount = rowCount;
         this.colCount = colCount;
         this.grid = new char[rowCount][colCount];
+
         for (int i = 0; i < rowCount; i++) {
             Arrays.fill(this.grid[i], EMPTY_CELL);
         }
-        this.grid[rowCount / 2][colCount / 2] = HUMAN_CELL;
+
+        final int midRow = rowCount / 2;
+        final int midCol = colCount / 2;
+        grid[midRow][midCol] = HUMAN_CELL;
     }
 
     public int getRowCount() {
@@ -51,22 +55,23 @@ public class Board {
     }
 
     public void printBoard() {
-        final StringBuilder stringBuild = new StringBuilder();
-        stringBuild.append("\n");
-        stringBuild.append("  ");
-        for (int c = 0; c < colCount; c++) {
-            stringBuild.append((char) ('a' + c)).append(" ");
-        }
-        stringBuild.append(System.lineSeparator());
-        for (int r = 0; r < rowCount; r++) {
-            stringBuild.append(r + 1).append(" ");
-            for (int c = 0; c < colCount; c++) {
-                stringBuild.append(grid[r][c]).append(" ");
-            }
-            stringBuild.append(System.lineSeparator());
-        }
         if (LOGGER.isLoggable(Level.INFO)) {
-            LOGGER.info(stringBuild.toString());
+            final StringBuilder boardOutput = new StringBuilder();
+            boardOutput.append("\n  ");
+            for (int c = 0; c < colCount; c++) {
+                boardOutput.append((char) ('a' + c)).append(" ");
+            }
+            boardOutput.append(System.lineSeparator());
+
+            for (int r = 0; r < rowCount; r++) {
+                boardOutput.append(r + 1).append(" ");
+                for (int c = 0; c < colCount; c++) {
+                    boardOutput.append(grid[r][c]).append(" ");
+                }
+                boardOutput.append(System.lineSeparator());
+            }
+
+            LOGGER.info(boardOutput.toString());
         }
     }
 
@@ -79,14 +84,17 @@ public class Board {
                     final char cellChar = line.charAt(col);
                     if (cellChar == HUMAN_CELL || cellChar == COMPUTER_CELL) {
                         grid[row][col] = cellChar;
-                    } else {
-                        grid[row][col] = EMPTY_CELL;
                     }
                 }
                 row++;
             }
+            if (LOGGER.isLoggable(Level.INFO)) {
+                LOGGER.log(Level.INFO, "Board loaded from file: {0}", filename);
+            }
         } catch (IOException exception) {
-            LOGGER.warning("Can't load file, new game starting");
+            if (LOGGER.isLoggable(Level.WARNING)) {
+                LOGGER.log(Level.WARNING, "Can't load file, starting new game.", exception);
+            }
         }
     }
 
@@ -99,10 +107,12 @@ public class Board {
                 writer.newLine();
             }
             if (LOGGER.isLoggable(Level.INFO)) {
-                LOGGER.info("Game Saved: " + filename);
+                LOGGER.log(Level.INFO, "Game saved to file: {0}", filename);
             }
         } catch (IOException exception) {
-            LOGGER.severe("Error while saving");
+            if (LOGGER.isLoggable(Level.SEVERE)) {
+                LOGGER.log(Level.SEVERE, "Error while saving game to file: " + filename, exception);
+            }
         }
     }
 }

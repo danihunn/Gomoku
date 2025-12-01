@@ -1,3 +1,4 @@
-/target/
-/.vscode/
-/save01
+/target
+/.vscode
+save01
+scoreboard.db
